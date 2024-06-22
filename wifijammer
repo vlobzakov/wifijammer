@@ -13,6 +13,7 @@ import sys
 import os
 from scapy.all import *
 import logging
+
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)  # Shut up Scapy
 conf.verb = 0  # Scapy I thought I told you to shut up
 
@@ -192,21 +193,36 @@ def start_mon_mode(interface):
 
 
 def remove_mon_iface(mon_iface):
-    os.system('ip link set %s down' % mon_iface)
-    os.system('iwconfig %s mode managed' % mon_iface)
-    os.system('ip link set %s up' % mon_iface)
+    try:
+        os.system('ip link set %s down' % mon_iface)
+        os.system('iwconfig %s mode managed' % mon_iface)
+        os.system('ip link set %s up' % mon_iface)
+    except Exception:
+        sys.exit('['+R+'-'+W+'] Could not stop monitor mode')
 
 
 def mon_mac(mon_iface):
-    '''
-    http://stackoverflow.com/questions/159137/getting-mac-address
-    '''
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack(
-        '256s', bytes(mon_iface).encode('utf-8')[:15]))
+    # Use the correct encoding for the interface name and pack it
+    iface_name = struct.pack('256s', mon_iface.encode('utf-8')[:15])
+    
+    # Perform the ioctl to get the hardware address
+    info = fcntl.ioctl(s.fileno(), 0x8927, iface_name)
+    
+    # Extract and format the MAC address
     mac = ':'.join('%02x' % ord(b) for b in info[18:24])
     print('['+G+'*'+W+'] Monitor mode: '+G+mon_iface+W+' - '+O+mac+W)
     return mac
+
+# More code below this line remains unchanged...
+
+if __name__ == "__main__":
+    # Parse command line arguments
+    args = parse_args()
+    mon_iface = get_mon_iface(args)
+
+    # Example of calling mon_mac function to test it
+    mon_mac_address = mon_mac(mon_iface)
 
 ########################################
 # End of interface info and manipulation
